@@ -10,6 +10,7 @@ class UserModel {
   final DateTime? lastStrengthTestDate;
   final Map<String, dynamic>? exercisePreferences;
   final List<bool>? workDays;
+  final bool hasCompletedOnboarding;
 
   UserModel({
     required this.id,
@@ -23,6 +24,7 @@ class UserModel {
     this.lastStrengthTestDate,
     this.exercisePreferences,
     this.workDays,
+    this.hasCompletedOnboarding = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -38,24 +40,30 @@ class UserModel {
       'last_strength_test_date': lastStrengthTestDate?.toIso8601String(),
       'exercise_preferences': exercisePreferences,
       'work_days': workDays,
+      'has_completed_onboarding': hasCompletedOnboarding,
     };
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      id: map['id'],
-      email: map['email'],
+      id: map['id'] ?? '',
+      email: map['email'] ?? '',
       name: map['name'],
       companyId: map['company_id'],
       workStartTime: map['work_start_time'],
       workEndTime: map['work_end_time'],
-      createdAt: DateTime.parse(map['created_at']),
+      createdAt: map['created_at'] != null 
+          ? DateTime.parse(map['created_at'])
+          : null,
       optOutRanking: map['opt_out_ranking'] ?? false,
       lastStrengthTestDate: map['last_strength_test_date'] != null
           ? DateTime.parse(map['last_strength_test_date'])
           : null,
       exercisePreferences: map['exercise_preferences'],
-      workDays: map['work_days'] != null ? List<bool>.from(map['work_days']) : null,
+      workDays: map['work_days'] != null 
+          ? List<bool>.from(map['work_days'])
+          : null,
+      hasCompletedOnboarding: map['has_completed_onboarding'] ?? false,
     );
   }
 
@@ -71,6 +79,7 @@ class UserModel {
     DateTime? lastStrengthTestDate,
     Map<String, dynamic>? exercisePreferences,
     List<bool>? workDays,
+    bool? hasCompletedOnboarding,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -84,6 +93,7 @@ class UserModel {
       lastStrengthTestDate: lastStrengthTestDate ?? this.lastStrengthTestDate,
       exercisePreferences: exercisePreferences ?? this.exercisePreferences,
       workDays: workDays ?? this.workDays,
+      hasCompletedOnboarding: hasCompletedOnboarding ?? this.hasCompletedOnboarding,
     );
   }
 }

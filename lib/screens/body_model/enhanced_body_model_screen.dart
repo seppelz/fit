@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../../models/muscle_group_model.dart';
 import '../../providers/muscle_group_provider.dart';
 import 'widgets/holographic_body_model.dart';

@@ -28,7 +28,7 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  void setDevelopmentUser() {
+  void setDevelopmentUser() async {
     _user = UserModel(
       id: 'dev_user',
       email: 'dev@example.com',
@@ -38,14 +38,35 @@ class UserProvider with ChangeNotifier {
       workEndTime: '17:00',
       createdAt: DateTime.now(),
       optOutRanking: false,
+      hasCompletedOnboarding: true,  // Set this to true to skip onboarding
       exercisePreferences: {
         'difficulty': 'Medium',
         'duration': 10,
         'categories': ['Desk', 'Standing', 'Stretching'],
+        'hasTheraband': true,
+        'allowStandingExercises': true,
+        'allowSittingExercises': true,
+        'allowStrengthening': true,
+        'allowMobilisation': true,
+        'notificationsEnabled': true,
       },
       workDays: [true, true, true, true, true, false, false], // Mon-Fri
     );
     notifyListeners();
+
+    // Update user settings in database
+    try {
+      await _userService.updateUserSettings(_user!.id, {
+        'has_theraband': true,
+        'allow_standing_exercises': true,
+        'allow_sitting_exercises': true,
+        'allow_strengthening': true,
+        'allow_mobilisation': true,
+        'notification_enabled': true,
+      });
+    } catch (e) {
+      debugPrint('Error updating user settings: $e');
+    }
   }
 
   Future<void> updateUser(UserModel updatedUser) async {

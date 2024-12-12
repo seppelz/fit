@@ -4,13 +4,19 @@ import 'package:flutter/foundation.dart'
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    // These are placeholder values for development
-    return const FirebaseOptions(
-      apiKey: 'dummy-api-key',
-      appId: '1:1234567890:android:1234567890',
-      messagingSenderId: '1234567890',
-      projectId: 'fit-at-work-dev',
-      storageBucket: 'fit-at-work-dev.appspot.com',
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return android;
+    }
+    throw UnsupportedError(
+      'DefaultFirebaseOptions are not supported for this platform.',
     );
   }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyCtcqt36AtRNqwgHk3xo-AelCo8ys5OcNY',
+    appId: '1:787022911821:android:eeae2c9f9bf911c448bf04',
+    messagingSenderId: '787022911821',
+    projectId: 'fit-at-work-bd1c1',
+    storageBucket: 'fit-at-work-bd1c1.firebasestorage.app',
+  );
 }

@@ -6,14 +6,43 @@ import 'screens/auth/login_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'providers/user_provider.dart';
 import 'services/user_service.dart';
+import 'services/auth_service.dart';
 import 'providers/exercise_progress_provider.dart';
 import 'providers/muscle_group_provider.dart';
 import 'providers/muscle_development_provider.dart';
 import 'screens/body_model/enhanced_body_model_screen.dart';
+import 'models/user_model.dart';
+import 'firebase_options.dart';
+import 'models/database/database_helper.dart'; // Import DatabaseHelper
+
+// Set to true to skip login and use a development user
+const bool kDevMode = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // Initialize Firebase first
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('Failed to initialize Firebase: $e');
+  }
+  
+  // Initialize database
+  try {
+    final dbHelper = DatabaseHelper();
+    await dbHelper.database; // This will create and initialize the database
+    
+    // Verify database initialization
+    final exerciseCount = await dbHelper.getExerciseCount();
+    debugPrint('Database initialized successfully with $exerciseCount exercises');
+  } catch (e) {
+    debugPrint('Failed to initialize database: $e');
+  }
+
   runApp(const MyApp());
 }
 
@@ -24,7 +53,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (context) {
+          final provider = UserProvider();
+          if (kDevMode) {
+            provider.setDevelopmentUser(); // Set development user if in dev mode
+          }
+          return provider;
+        }),
         ChangeNotifierProvider(create: (_) => ExerciseProgressProvider()),
         ChangeNotifierProvider(create: (_) => MuscleGroupProvider()),
         ChangeNotifierProvider(
@@ -63,33 +98,19 @@ class MyApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        home: StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+        home: Consumer<UserProvider>(
+          builder: (context, userProvider, _) {
+            final user = userProvider.user;
+            
+            if (user == null) {
+              return const LoginScreen();
             }
 
-            if (snapshot.hasData) {
-              return FutureBuilder<UserModel?>(
-                future: UserService().getUser(snapshot.data!.uid),
-                builder: (context, userSnapshot) {
-                  if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (userSnapshot.hasData) {
-                    if (!userSnapshot.data!.hasCompletedOnboarding) {
-                      return const OnboardingScreen();
-                    }
-                    return const EnhancedBodyModelScreen();
-                  }
-                  return const LoginScreen();
-                },
-              );
+            if (!user.hasCompletedOnboarding) {
+              return const OnboardingScreen();
             }
 
-            return const LoginScreen();
+            return const EnhancedBodyModelScreen();
           },
         ),
       ),

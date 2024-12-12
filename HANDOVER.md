@@ -29,6 +29,9 @@
 
 "Fit at Work" is a workplace wellness application focused on quick, simple exercises that can be done at a desk. The app aims to promote regular movement during work hours through short, effective exercises.
 
+To compile and run the app on smartphone:  /media/sebastian/DATA/Code/flutter/bin/flutter run -d AXPMVB2521003232 
+
+
 ### Core Purpose
 - Combat the negative effects of prolonged sitting
 - Promote regular movement during work hours

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../../../models/muscle_group_model.dart';
 import '../../../providers/muscle_group_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../painters/hexagonal_grid_painter.dart';
 import 'dart:math' as math;
+import '../../../services/exercise_service.dart';
+import '../../../screens/exercise/exercise_detail_screen.dart';
 
 class HolographicBodyModel extends StatefulWidget {
   final Function(MuscleGroups)? onMuscleSelected;
@@ -104,6 +108,7 @@ class _HolographicBodyModelState extends State<HolographicBodyModel>
                 if (widget.onMuscleSelected != null) {
                   widget.onMuscleSelected!(muscle);
                 }
+                _handleTap(context, muscle);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -154,77 +159,110 @@ class _HolographicBodyModelState extends State<HolographicBodyModel>
     
   }
 
+  void _handleTap(BuildContext context, MuscleGroups muscle) async {
+    // Get exercise service instance
+    final exerciseService = ExerciseService();
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.user;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User not found'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // First get all exercises to see what's available
+      final allExercises = await exerciseService.getExercises();
+      debugPrint('All exercises: ${allExercises.map((e) => '${e.name} (${e.targetMuscleGroup})').toList()}');
+
+      // Get exercises for selected muscle group
+      final exercises = await exerciseService.getLeastShownExercises(
+        userId: user.id,
+        muscleGroup: muscle.germanName,
+        limit: 1, // Get just one exercise
+      );
+
+      if (!context.mounted) return;
+
+      if (exercises.isNotEmpty) {
+        // Navigate to exercise detail screen with the selected exercise
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ExerciseDetailScreen(
+              exercise: exercises.first,
+            ),
+          ),
+        );
+      } else {
+        // Show error if no exercises found
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No exercises found for this muscle group'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<MuscleGroupProvider>(
-      builder: (context, muscleProvider, child) {
-        return Stack(
-          children: [
-            GestureDetector(
-              onDoubleTap: _rotateModel,
-              child: MouseRegion(
-                onHover: _handleHover,
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: HexagonalGridPainter(
-                    hoveredMuscle: _hoveredMuscle,
-                    selectedMuscle: muscleProvider.selectedGroup,
-                    animationValue: _scanLineController.value,
-                    pulseValue: _pulseController.value,
-                    isBackView: _isBackView,
-                    completedMuscles: widget.completedMuscles,
-                  ),
-                ),
+      builder: (context, muscleGroupProvider, child) {
+        return GestureDetector(
+          onTapDown: (TapDownDetails details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            final position = box.globalToLocal(details.globalPosition);
+            final Size size = box.size;
+            
+            final MuscleGroups? muscle = _getMuscleAtPosition(position, size);
+            if (muscle != null) {
+              _handleTap(context, muscle);
+            }
+          },
+          child: MouseRegion(
+            onHover: _handleHover,
+            child: CustomPaint(
+              painter: HexagonalGridPainter(
+                hoveredMuscle: _hoveredMuscle,
+                selectedMuscle: muscleGroupProvider.selectedGroup,
+                animationValue: _scanLineController.value,
+                pulseValue: _pulseController.value,
+                isBackView: _isBackView,
+                completedMuscles: widget.completedMuscles,
               ),
-            ),
-            // Rotation instruction tooltip with frosted glass effect
-            Positioned(
-              top: 16,
-              right: 16,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A237E).withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFF009688).withOpacity(0.3),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF009688).withOpacity(0.1),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.touch_app,
-                          color: const Color(0xFF009688).withOpacity(0.8),
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Double tap to rotate',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+              child: Stack(
+                children: [
+                  // Rotate button
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: FloatingActionButton(
+                      onPressed: _rotateModel,
+                      backgroundColor: Colors.black87,
+                      child: const Icon(Icons.rotate_right, color: Color(0xFF00FF88)),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
+          ),
         );
       },
     );

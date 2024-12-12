@@ -26,7 +26,7 @@ enum ExerciseSide {
 }
 
 class Exercise {
-  final String id;
+  final int id;
   final String name;
   final String description;
   final String videoUrl;
@@ -38,7 +38,12 @@ class Exercise {
   final ExerciseSide side;
   final Duration duration;
 
-  const Exercise({
+  // Progress tracking
+  int _completedCount;
+  int _cancelledCount;
+  int _skippedCount;
+
+  Exercise({
     required this.id,
     required this.name,
     required this.description,
@@ -50,10 +55,25 @@ class Exercise {
     required this.movement,
     required this.side,
     required this.duration,
-  });
+    int completedCount = 0,
+    int cancelledCount = 0,
+    int skippedCount = 0,
+  })  : _completedCount = completedCount,
+        _cancelledCount = cancelledCount,
+        _skippedCount = skippedCount;
+
+  // Getters and setters for progress tracking
+  int get completedCount => _completedCount;
+  set completedCount(int value) => _completedCount = value;
+
+  int get cancelledCount => _cancelledCount;
+  set cancelledCount(int value) => _cancelledCount = value;
+
+  int get skippedCount => _skippedCount;
+  set skippedCount(int value) => _skippedCount = value;
 
   Exercise copyWith({
-    String? id,
+    int? id,
     String? name,
     String? description,
     String? videoUrl,
@@ -64,6 +84,9 @@ class Exercise {
     ExerciseMovement? movement,
     ExerciseSide? side,
     Duration? duration,
+    int? completedCount,
+    int? cancelledCount,
+    int? skippedCount,
   }) {
     return Exercise(
       id: id ?? this.id,
@@ -77,6 +100,9 @@ class Exercise {
       movement: movement ?? this.movement,
       side: side ?? this.side,
       duration: duration ?? this.duration,
+      completedCount: completedCount ?? this.completedCount,
+      cancelledCount: cancelledCount ?? this.cancelledCount,
+      skippedCount: skippedCount ?? this.skippedCount,
     );
   }
 
@@ -93,22 +119,28 @@ class Exercise {
       'movement': movement.toString(),
       'side': side.toString(),
       'duration': duration.inMinutes,
+      'completedCount': completedCount,
+      'cancelledCount': cancelledCount,
+      'skippedCount': skippedCount,
     };
   }
 
   factory Exercise.fromMap(Map<String, dynamic> map) {
     return Exercise(
-      id: map['id'] as String,
+      id: map['id'] as int,
       name: map['name'] as String,
-      description: map['description'] as String,
-      videoUrl: map['videoUrl'] as String,
-      targetMuscleGroup: MuscleGroups.values.firstWhere((element) => element.toString() == map['targetMuscleGroup']),
-      type: ExerciseType.values.firstWhere((element) => element.toString() == map['type']),
-      position: ExercisePosition.values.firstWhere((element) => element.toString() == map['position']),
-      equipment: ExerciseEquipment.values.firstWhere((element) => element.toString() == map['equipment']),
-      movement: ExerciseMovement.values.firstWhere((element) => element.toString() == map['movement']),
-      side: ExerciseSide.values.firstWhere((element) => element.toString() == map['side']),
-      duration: Duration(minutes: map['duration'] as int),
+      description: map['execution'] as String? ?? '', 
+      videoUrl: map['video_id'] as String? ?? '',
+      targetMuscleGroup: MuscleGroups.fromGermanName(map['muscle_group'] as String),
+      type: map['category'] == 'Kraft' ? ExerciseType.strength : ExerciseType.mobilization,
+      position: (map['is_sitting'] as int? ?? 0) == 1 ? ExercisePosition.sitting : ExercisePosition.standing,
+      equipment: (map['is_theraband'] as int? ?? 0) == 1 ? ExerciseEquipment.theraband : ExerciseEquipment.bodyweight,
+      movement: (map['is_dynamic'] as int? ?? 0) == 1 ? ExerciseMovement.dynamic : ExerciseMovement.static,
+      side: (map['is_one_sided'] as int? ?? 0) == 1 ? ExerciseSide.alternating : ExerciseSide.both,
+      duration: const Duration(minutes: 3), 
+      completedCount: map['completed_count'] as int? ?? 0,
+      cancelledCount: map['cancelled_count'] as int? ?? 0,
+      skippedCount: map['skipped_count'] as int? ?? 0,
     );
   }
 }

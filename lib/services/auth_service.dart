@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import 'user_service.dart';
 
@@ -121,6 +122,55 @@ class AuthService {
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    }
+  }
+
+  // Development only: Sign in with mock user
+  Future<void> signInWithMockUser() async {
+    try {
+      // Sign in with a test email/password
+      await signInWithEmail(
+        'test@example.com',
+        'password123',
+      ).catchError((e) async {
+        // If user doesn't exist, create it
+        await signUpWithEmail(
+          'test@example.com',
+          'password123',
+          name: 'Test User',
+        );
+      });
+
+      // Get the current user
+      final firebaseUser = _auth.currentUser;
+      if (firebaseUser != null) {
+        // Check if user profile exists
+        final userProfile = await _userService.getUser(firebaseUser.uid);
+        if (userProfile == null) {
+          // Create a mock user profile
+          final mockUser = UserModel(
+            id: firebaseUser.uid,
+            email: 'test@example.com',
+            name: 'Test User',
+            companyId: 'mock_company',
+            workStartTime: '09:00',
+            workEndTime: '17:00',
+            createdAt: DateTime.now(),
+            optOutRanking: false,
+            hasCompletedOnboarding: true,
+            workDays: [true, true, true, true, true, false, false], // Monday to Friday
+            exercisePreferences: {
+              'difficulty': 'intermediate',
+              'duration': 15,
+              'equipment': ['none', 'resistance_band'],
+            },
+          );
+          await _userService.createUser(mockUser);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error signing in with mock user: $e');
+      rethrow;
     }
   }
 

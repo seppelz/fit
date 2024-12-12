@@ -1,44 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exercise_model.dart';
 import '../services/exercise_service.dart';
 
 class ExerciseProgress {
   final String id;
   final String exerciseId;
-  final DateTime completedAt;
-  final int duration;
-  final int caloriesBurned;
+  final String exerciseName;
+  final String muscleGroup;
+  final String category;
+  final DateTime date;
+  final bool completed;
+  final bool cancelled;
+  final bool skipped;
 
   ExerciseProgress({
     required this.id,
     required this.exerciseId,
-    required this.completedAt,
-    required this.duration,
-    required this.caloriesBurned,
+    required this.exerciseName,
+    required this.muscleGroup,
+    required this.category,
+    required this.date,
+    required this.completed,
+    required this.cancelled,
+    required this.skipped,
   });
 
   factory ExerciseProgress.fromMap(Map<String, dynamic> map) {
     return ExerciseProgress(
-      id: map['id'] as String,
-      exerciseId: map['exerciseId'] as String,
-      completedAt: DateTime.parse(map['completedAt'] as String),
-      duration: map['duration'] as int,
-      caloriesBurned: map['caloriesBurned'] as int,
+      id: map['id'].toString(),
+      exerciseId: map['exercise_id'].toString(),
+      exerciseName: map['exercise_name'] as String,
+      muscleGroup: map['muscle_group'] as String,
+      category: map['category'] as String,
+      date: DateTime.parse(map['date'] as String),
+      completed: map['completed'] == 1,
+      cancelled: map['cancelled'] == 1,
+      skipped: map['skipped'] == 1,
     );
   }
 }
 
 class DailyProgress {
   final int totalExercises;
-  final int totalMinutes;
-  final int totalCalories;
+  final int completedExercises;
+  final int cancelledExercises;
+  final int skippedExercises;
   final DateTime date;
 
   DailyProgress({
     required this.totalExercises,
-    required this.totalMinutes,
-    required this.totalCalories,
+    required this.completedExercises,
+    required this.cancelledExercises,
+    required this.skippedExercises,
     required this.date,
   });
 }
@@ -62,21 +75,19 @@ class ExerciseProgressProvider extends ChangeNotifier {
 
     try {
       // Load recent exercise completions
-      final progressStream = _exerciseService.getUserExerciseHistory(userId);
-      await for (final progress in progressStream) {
-        _recentProgress = progress
-            .map((p) => ExerciseProgress.fromMap(p))
-            .take(10) // Get last 10 exercises
-            .toList();
-        break; // Only get the first emission
-      }
+      final progressData = await _exerciseService.getUserExerciseHistory(userId);
+      _recentProgress = progressData
+          .map((p) => ExerciseProgress.fromMap(p))
+          .take(10) // Get last 10 exercises
+          .toList();
 
       // Load today's stats
       final stats = await _exerciseService.getUserExerciseStats(userId);
       _todayProgress = DailyProgress(
-        totalExercises: stats['totalExercises'] as int,
-        totalMinutes: stats['totalMinutes'] as int,
-        totalCalories: stats['totalCalories'] as int,
+        totalExercises: stats['total_exercises'] as int,
+        completedExercises: stats['completed'] as int,
+        cancelledExercises: stats['cancelled'] as int,
+        skippedExercises: stats['skipped'] as int,
         date: DateTime.now(),
       );
     } catch (e) {
@@ -90,74 +101,24 @@ class ExerciseProgressProvider extends ChangeNotifier {
   Future<void> recordExerciseCompletion({
     required String userId,
     required Exercise exercise,
-    required int actualDuration,
-    required int actualCalories,
+    required bool completed,
+    required bool cancelled,
+    required bool skipped,
   }) async {
     try {
       await _exerciseService.recordExerciseCompletion(
         userId: userId,
         exerciseId: exercise.id,
-        completedAt: DateTime.now(),
-        duration: actualDuration,
-        caloriesBurned: actualCalories,
+        completed: completed,
+        cancelled: cancelled,
+        skipped: skipped,
       );
 
-      // Refresh progress after recording completion
+      // Reload progress after recording
       await loadUserProgress(userId);
     } catch (e) {
       debugPrint('Error recording exercise completion: $e');
       rethrow;
     }
-  }
-
-  double get dailyProgressPercentage {
-    if (_todayProgress == null) return 0.0;
-    // Assuming a daily goal of 30 minutes
-    return (_todayProgress!.totalMinutes / 30).clamp(0.0, 1.0);
-  }
-
-  bool get dailyGoalAchieved {
-    return dailyProgressPercentage >= 1.0;
-  }
-
-  String get dailyProgressMessage {
-    if (_todayProgress == null) return 'Start your first exercise!';
-    
-    final remaining = 30 - _todayProgress!.totalMinutes;
-    if (remaining <= 0) {
-      return 'Daily goal achieved! 🎉';
-    } else {
-      return '$remaining minutes left to reach your daily goal';
-    }
-  }
-
-  List<MapEntry<String, int>> getWeeklyProgress() {
-    final weekProgress = List.generate(7, (index) {
-      final date = DateTime.now().subtract(Duration(days: 6 - index));
-      final progress = _recentProgress.where((p) {
-        return p.completedAt.year == date.year &&
-            p.completedAt.month == date.month &&
-            p.completedAt.day == date.day;
-      });
-      
-      return MapEntry(
-        '${date.month}/${date.day}',
-        progress.fold(0, (sum, p) => sum + p.duration),
-      );
-    });
-
-    return weekProgress;
-  }
-
-  Map<String, int> getCategoryBreakdown() {
-    final categories = <String, int>{};
-    for (final progress in _recentProgress) {
-      categories.update(
-        progress.exerciseId,
-        (value) => value + 1,
-        ifAbsent: () => 1,
-      );
-    }
-    return categories;
   }
 }
