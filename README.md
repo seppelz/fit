@@ -1,33 +1,31 @@
 # Fit at Work
 
-A Flutter application designed to promote fitness and well-being in the workplace.
+A Flutter application designed to promote fitness and well-being in the workplace through quick, simple exercises that can be done at your desk.
 
 ## Features
 
-- Interactive 3D human model for muscle group selection
-- Personalized exercise recommendations
-- Video-guided exercises
-- Progress tracking and gamification
+Current Features:
+- Quick office-friendly exercises (1-2 minutes each)
+- Exercise categories: Desk, Standing, Floor, Stretching
+- Progress tracking with points and streaks
+- Daily exercise recommendations
+- Interactive body model for muscle group selection
+- Development mode for testing without Firebase
+- Muscle development tracking
+- Exercise filtering by muscle group
+
+Upcoming Features:
+- Video demonstrations
 - Company and global rankings
-- Regular strength tests
 - Customizable work hour notifications
-- Support for both standing and sitting exercises
-- Theraband exercise integration
 
-## Technical Requirements
-
-- Flutter SDK
-- Firebase
-- SQLite
-- YouTube API integration
-
-## Setup Instructions
+## Getting Started
 
 ### Prerequisites
 - Flutter SDK (installed at `/media/sebastian/DATA/Code/flutter`)
 - Android Studio (installed at `/media/sebastian/DATA/Code/android-studio`)
 - Android SDK (installed via Android Studio)
-- Firebase project configured
+- Firebase project (optional for development mode)
 
 ### Environment Setup
 1. **Flutter SDK**
@@ -40,49 +38,62 @@ A Flutter application designed to promote fitness and well-being in the workplac
    - Target SDK Version: 34
    - Physical device debugging enabled
 
-3. **Firebase Configuration**
+3. **Firebase Configuration (Optional)**
+   - Only needed for production mode
    - Project ID: fit-at-work-bd1c1
    - Android package name: com.seppelz.fit_at_work
-   - Firebase services ready for:
-     - Authentication
-     - Cloud Firestore
-     - Cloud Storage
 
 ### Running the Project
-1. Ensure Flutter is in your PATH:
-   ```bash
-   export PATH="$PATH:/media/sebastian/DATA/Code/flutter/bin"
-   ```
 
-2. Connect your Android device with USB debugging enabled
+#### Development Mode (No Firebase Required)
+```bash
+flutter run -t lib/main_dev.dart
+```
 
-3. Run the app:
-   ```bash
-   flutter run
-   ```
+#### Production Mode (Requires Firebase)
+```bash
+flutter run -t lib/main.dart
+```
 
 ## Project Structure
+
 ```
 fit_at_work/
 ├── android/          # Android-specific configuration
 ├── ios/             # iOS-specific configuration
 ├── lib/             # Main Dart code
-│   ├── models/      # Data models
-│   ├── services/    # Business logic and services
-│   └── screens/     # UI screens
+│   ├── main.dart          # Production entry point
+│   ├── main_dev.dart      # Development entry point
+│   ├── models/           # Data models
+│   │   ├── exercise_model.dart     # Exercise data structure
+│   │   ├── muscle_group_model.dart # Muscle group enums and properties
+│   │   └── progress_model.dart     # Progress tracking
+│   ├── providers/        # State management
+│   │   ├── muscle_group_provider.dart  # Muscle selection state
+│   │   └── muscle_development_provider.dart # Development tracking
+│   ├── screens/         # UI screens
+│   │   ├── body_model/  # Interactive body model components
+│   │   └── exercise/    # Exercise-related screens
+│   ├── services/        # Business logic
+│   └── widgets/         # Reusable UI components
 └── test/            # Test files
-```
 
-## Development Status
-Current development status and next steps can be found in HANDOVER.md
+## Development Notes
 
-## Privacy & GDPR Compliance
+- The app uses Provider for state management
+- Development mode uses mock data and services
+- Exercise durations are kept short (1-2 minutes) for better workplace integration
+- Focus on simple, effective exercises that can be done at a desk
+- Interactive body model uses SVG paths for accurate muscle group visualization
+- Muscle development is tracked and visualized through color gradients
 
-- User data is stored securely
-- Option to opt-out of rankings
-- Data export functionality
-- Clear data deletion process
-- Transparent data usage policy
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## Dependencies
 
@@ -99,4 +110,3 @@ dependencies:
   shared_preferences: ^2.2.2
   flutter_local_notifications: ^16.2.0
   flutter_3d_viewer: ^1.0.0
-```
