@@ -16,9 +16,9 @@ class EnhancedBodyModelScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black,
-              Colors.blue.shade900.withOpacity(0.6),
-              Colors.black,
+              const Color(0xFF1A237E), // Deep Navy Blue
+              const Color(0xFF1A237E).withOpacity(0.8),
+              const Color(0xFF1A237E).withOpacity(0.6),
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
@@ -35,41 +35,23 @@ class EnhancedBodyModelScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.2),
-                        blurRadius: 15,
+                        color: const Color(0xFF009688).withOpacity(0.2), // Teal glow
+                        blurRadius: 20,
                         spreadRadius: 5,
                       ),
                     ],
+                    border: Border.all(
+                      color: const Color(0xFF009688).withOpacity(0.1), // Subtle teal border
+                      width: 1,
+                    ),
                   ),
                   child: Stack(
                     children: [
-                      const HolographicBodyModel(),
-                      // Selected muscle info overlay
-                      Positioned(
-                        bottom: 16,
-                        left: 16,
-                        right: 16,
-                        child: Consumer<MuscleGroupProvider>(
-                          builder: (context, provider, child) {
-                            if (provider.selectedGroup == null) return const SizedBox();
-                            return Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.cyan.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Text(
-                                'Selected: ${provider.selectedGroup.toString().split('.').last}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            );
-                          },
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: const HolographicBodyModel(),
                         ),
                       ),
                     ],

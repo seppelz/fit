@@ -6,7 +6,16 @@ import '../painters/hexagonal_grid_painter.dart';
 import 'dart:math' as math;
 
 class HolographicBodyModel extends StatefulWidget {
-  const HolographicBodyModel({Key? key}) : super(key: key);
+  final Function(MuscleGroups)? onMuscleSelected;
+  final Function(MuscleGroups)? onMuscleHover;
+  final Set<MuscleGroups> completedMuscles;
+
+  const HolographicBodyModel({
+    super.key,
+    this.onMuscleSelected,
+    this.onMuscleHover,
+    this.completedMuscles = const {},
+  });
 
   @override
   State<HolographicBodyModel> createState() => _HolographicBodyModelState();
@@ -20,32 +29,34 @@ class _HolographicBodyModelState extends State<HolographicBodyModel>
   late AnimationController _pulseController;
   late AnimationController _rotationController;
   late Animation<double> _rotationAnimation;
+  double _rotationAngle = 0;
 
   @override
   void initState() {
     super.initState();
+    
+    // Scanning line animation
     _scanLineController = AnimationController(
+      duration: const Duration(seconds: 3),
       vsync: this,
-      duration: const Duration(seconds: 2),
     )..repeat();
 
+    // Pulse animation with easing
     _pulseController = AnimationController(
-      vsync: this,
       duration: const Duration(milliseconds: 1500),
+      vsync: this,
     )..repeat(reverse: true);
 
+    // Smooth rotation animation
     _rotationController = AnimationController(
-      vsync: this,
       duration: const Duration(milliseconds: 800),
+      vsync: this,
     );
 
-    _rotationAnimation = Tween<double>(
-      begin: 0,
-      end: math.pi,
-    ).animate(CurvedAnimation(
+    _rotationAnimation = CurvedAnimation(
       parent: _rotationController,
-      curve: Curves.easeInOutBack,
-    ));
+      curve: Curves.easeInOutCubic,
+    );
 
     _rotationController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -69,90 +80,147 @@ class _HolographicBodyModelState extends State<HolographicBodyModel>
     _rotationController.forward();
   }
 
+  void _handleHover(PointerEvent details) {
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final position = box.globalToLocal(details.position);
+    final Size size = box.size;
+    
+    final MuscleGroups? muscle = _getMuscleAtPosition(position, size);
+    
+    if (muscle != null) {
+      // Show tooltip with muscle name and exercise count
+      final Offset tooltipPosition = details.position;
+      OverlayEntry? overlayEntry;
+      
+      overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          top: tooltipPosition.dy - 60,
+          left: tooltipPosition.dx,
+          child: Material(
+            color: Colors.transparent,
+            child: GestureDetector(
+              onTap: () {
+                overlayEntry?.remove();
+                if (widget.onMuscleSelected != null) {
+                  widget.onMuscleSelected!(muscle);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      muscle.displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      widget.completedMuscles.contains(muscle)
+                          ? 'Completed for today'
+                          : 'Tap to start exercise',
+                      style: TextStyle(
+                        color: widget.completedMuscles.contains(muscle)
+                            ? Colors.green[300]
+                            : Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      Overlay.of(context).insert(overlayEntry);
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        overlayEntry?.remove();
+      });
+      
+      // Since we're inside the null check, muscle is guaranteed to be non-null here
+      if (widget.onMuscleHover != null) {
+        widget.onMuscleHover!(muscle); // Now muscle is treated as non-null
+      }
+    }
+    
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<MuscleGroupProvider>(
       builder: (context, muscleProvider, child) {
         return Stack(
           children: [
-            // Main body model with rotation
             GestureDetector(
               onDoubleTap: _rotateModel,
-              child: AnimatedBuilder(
-                animation: Listenable.merge([
-                  _scanLineController,
-                  _pulseController,
-                  _rotationController,
-                ]),
-                builder: (context, child) {
-                  return Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.001) // perspective
-                      ..rotateY(_rotationAnimation.value),
-                    child: MouseRegion(
-                      onHover: (event) {
-                        final RenderBox box = context.findRenderObject() as RenderBox;
-                        final position = box.globalToLocal(event.position);
-                        final muscle = _getMuscleAtPosition(position, box.size);
-                        setState(() => _hoveredMuscle = muscle);
-                      },
-                      onExit: (_) => setState(() => _hoveredMuscle = null),
-                      child: GestureDetector(
-                        onTapUp: (details) {
-                          final RenderBox box = context.findRenderObject() as RenderBox;
-                          final position = box.globalToLocal(details.globalPosition);
-                          final muscle = _getMuscleAtPosition(position, box.size);
-                          if (muscle != null) {
-                            muscleProvider.setSelectedGroup(muscle);
-                          }
-                        },
-                        child: CustomPaint(
-                          painter: HexagonalGridPainter(
-                            hoveredMuscle: _hoveredMuscle,
-                            selectedMuscle: muscleProvider.selectedGroup,
-                            animationValue: _scanLineController.value,
-                            pulseValue: _pulseController.value,
-                            isBackView: _isBackView,
-                          ),
-                          child: Container(),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+              child: MouseRegion(
+                onHover: _handleHover,
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: HexagonalGridPainter(
+                    hoveredMuscle: _hoveredMuscle,
+                    selectedMuscle: muscleProvider.selectedGroup,
+                    animationValue: _scanLineController.value,
+                    pulseValue: _pulseController.value,
+                    isBackView: _isBackView,
+                    completedMuscles: widget.completedMuscles,
+                  ),
+                ),
               ),
             ),
-            // Rotation instruction tooltip
+            // Rotation instruction tooltip with frosted glass effect
             Positioned(
               top: 16,
               right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.cyan.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.touch_app,
-                      color: Colors.cyan.withOpacity(0.8),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Double tap to rotate',
-                      style: TextStyle(
-                        color: Colors.cyan.withOpacity(0.8),
-                        fontSize: 12,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A237E).withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF009688).withOpacity(0.3),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF009688).withOpacity(0.1),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.touch_app,
+                          color: const Color(0xFF009688).withOpacity(0.8),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Double tap to rotate',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -1,62 +1,124 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../models/muscle_group_model.dart';
-import '../../../providers/muscle_group_provider.dart';
+import '../../../models/exercise_model.dart';
 
 class MuscleInfoCard extends StatelessWidget {
-  final MuscleGroups muscleGroup;
+  final MuscleGroups? selectedMuscle;
+  final List<Exercise> availableExercises;
+  final VoidCallback onStartExercise;
+  final bool isCompleted;
 
   const MuscleInfoCard({
-    Key? key,
-    required this.muscleGroup,
-  }) : super(key: key);
+    super.key,
+    required this.selectedMuscle,
+    required this.availableExercises,
+    required this.onStartExercise,
+    this.isCompleted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (selectedMuscle == null) {
+      return const SizedBox.shrink();
+    }
+
     return Card(
-      margin: const EdgeInsets.all(8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.all(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  muscleGroup.displayName,
-                  style: Theme.of(context).textTheme.titleLarge,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        selectedMuscle!.displayName,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${availableExercises.length} exercises available',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () {
-                    Provider.of<MuscleGroupProvider>(context, listen: false)
-                        .clearSelection();
-                  },
-                ),
+                if (isCompleted)
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 24,
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              muscleGroup.description,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
             const SizedBox(height: 16),
-            Text(
-              'Related Exercises:',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: muscleGroup.relatedExercises
-                  .map((exercise) => Chip(label: Text(exercise)))
-                  .toList(),
+            if (availableExercises.isNotEmpty) ...[
+              SizedBox(
+                height: 60,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: availableExercises.length,
+                  itemBuilder: (context, index) {
+                    final exercise = availableExercises[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Tooltip(
+                        message: exercise.name,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.grey[200],
+                          child: Icon(
+                            _getExerciseIcon(exercise.type),
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            ElevatedButton.icon(
+              onPressed: isCompleted ? null : onStartExercise,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: isCompleted ? Colors.grey[300] : Theme.of(context).primaryColor,
+              ),
+              icon: Icon(
+                isCompleted ? Icons.check : Icons.fitness_center,
+                color: isCompleted ? Colors.grey[600] : Colors.white,
+              ),
+              label: Text(
+                isCompleted ? 'Completed for Today' : 'Start Exercise',
+                style: TextStyle(
+                  color: isCompleted ? Colors.grey[600] : Colors.white,
+                  fontSize: 16,
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getExerciseIcon(ExerciseType type) {
+    switch (type) {
+      case ExerciseType.stretching:
+        return Icons.accessibility_new;
+      case ExerciseType.strength:
+        return Icons.fitness_center;
+      case ExerciseType.cardio:
+        return Icons.directions_run;
+      default:
+        return Icons.sports_gymnastics;
+    }
   }
 }

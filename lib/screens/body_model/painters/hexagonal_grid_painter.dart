@@ -111,6 +111,7 @@ class HexagonalGridPainter extends CustomPainter {
   final double animationValue;
   final double pulseValue;
   final bool isBackView;
+  final Set<MuscleGroups> completedMuscles;
 
   HexagonalGridPainter({
     this.hoveredMuscle,
@@ -118,104 +119,123 @@ class HexagonalGridPainter extends CustomPainter {
     required this.animationValue,
     required this.pulseValue,
     this.isBackView = false,
+    required this.completedMuscles,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final hexagonRadius = size.width * 0.03;
+    final hexagonRadius = size.width * 0.05;
     
-    // Draw background gradient
-    final backgroundGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        Colors.black,
-        Colors.blue.withOpacity(0.2),
-        Colors.black,
-      ],
-    );
-    
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..shader = backgroundGradient.createShader(Offset.zero & size),
-    );
-
     // Draw scanning line effect
     final scanLineY = size.height * animationValue;
+    final scanLinePaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          const Color(0xFF009688).withOpacity(0.0), // Teal fade in
+          const Color(0xFF009688).withOpacity(0.5), // Teal peak
+          const Color(0xFF009688).withOpacity(0.0), // Teal fade out
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromLTWH(0, scanLineY - 10, size.width, 20))
+      ..strokeWidth = 2
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    
     canvas.drawLine(
       Offset(0, scanLineY),
       Offset(size.width, scanLineY),
-      Paint()
-        ..color = Colors.cyan.withOpacity(0.5)
-        ..strokeWidth = 2
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      scanLinePaint,
     );
 
-    // Draw decorative elements (head hexagon) in both views
-    decorativeElements.forEach((element, positions) {
-      for (final position in positions) {
-        final center = Offset(
-          position.dx * size.width,
-          position.dy * size.height,
-        );
-
-        // Draw head hexagon with a dimmer color
-        final hexagonPath = _createHexagonPath(center, hexagonRadius);
-        final hexagonPaint = Paint()
-          ..color = Colors.grey.withOpacity(0.3)
-          ..style = PaintingStyle.fill;
-
-        canvas.drawPath(hexagonPath, hexagonPaint);
-
-        // Draw border
-        final borderPaint = Paint()
-          ..color = Colors.grey.withOpacity(0.5)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0;
-
-        canvas.drawPath(hexagonPath, borderPaint);
-      }
-    });
-
-    // Draw muscle groups based on view
-    final musclePositions = isBackView ? backMuscleGridPositions : muscleGridPositions;
-    musclePositions.forEach((muscle, positions) {
-      final isHovered = hoveredMuscle == muscle;
-      final isSelected = selectedMuscle == muscle;
-      final baseColor = muscleColors[muscle] ?? Colors.blue;
+    // Draw grid with enhanced effects
+    void drawHexagon(Offset center, MuscleGroups? muscleGroup, {bool isDecorative = false}) {
+      final path = _createHexagonPath(center, hexagonRadius);
       
-      for (final position in positions) {
-        final center = Offset(
-          position.dx * size.width,
-          position.dy * size.height,
+      // Determine the fill color and effects
+      final Paint fillPaint = Paint();
+      final Paint strokePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+
+      if (isDecorative) {
+        // Decorative elements (like head) get a subtle professional look
+        fillPaint.color = const Color(0xFF1A237E).withOpacity(0.3);
+        strokePaint.color = const Color(0xFF009688).withOpacity(0.2);
+      } else if (muscleGroup != null) {
+        final bool isHovered = muscleGroup == hoveredMuscle;
+        final bool isSelected = muscleGroup == selectedMuscle;
+        final bool isCompleted = completedMuscles.contains(muscleGroup);
+        
+        // Base color with professional effects
+        fillPaint.color = muscleGroup.getDisplayColor(
+          isCompleted: isCompleted,
+          isHovered: isHovered,
+          opacity: isSelected ? 0.8 : 0.6,
         );
 
-        // Draw glow effect for hovered/selected hexagons
+        // Glow effect for interactive states
         if (isHovered || isSelected) {
-          final glowPaint = Paint()
-            ..color = baseColor.withOpacity(0.3 + 0.2 * pulseValue)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
-          
-          canvas.drawCircle(center, hexagonRadius * 1.5, glowPaint);
+          canvas.drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFF009688).withOpacity(0.3)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+          );
         }
 
-        // Draw hexagon
-        final hexagonPath = _createHexagonPath(center, hexagonRadius);
-        final hexagonPaint = Paint()
-          ..color = baseColor.withOpacity(isHovered || isSelected ? 0.8 : 0.5)
-          ..style = PaintingStyle.fill;
+        // Pulse effect for completed muscles
+        if (isCompleted) {
+          canvas.drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFF2E7D32).withOpacity(0.2 * pulseValue)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+          );
+        }
 
-        canvas.drawPath(hexagonPath, hexagonPaint);
-
-        // Draw hexagon border
-        final borderPaint = Paint()
-          ..color = baseColor.withOpacity(0.8)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5;
-
-        canvas.drawPath(hexagonPath, borderPaint);
+        strokePaint.color = isHovered 
+            ? const Color(0xFF009688).withOpacity(0.8)
+            : const Color(0xFF009688).withOpacity(0.3);
       }
-    });
+
+      // Draw the hexagon with professional effects
+      canvas.drawPath(path, fillPaint);
+      canvas.drawPath(path, strokePaint);
+    }
+
+    // Draw all hexagons
+    if (!isBackView) {
+      // Draw front view
+      decorativeElements.forEach((element, positions) {
+        for (final position in positions) {
+          drawHexagon(
+            Offset(position.dx * size.width, position.dy * size.height),
+            null,
+            isDecorative: true,
+          );
+        }
+      });
+
+      muscleGridPositions.forEach((muscle, positions) {
+        for (final position in positions) {
+          drawHexagon(
+            Offset(position.dx * size.width, position.dy * size.height),
+            muscle,
+          );
+        }
+      });
+    } else {
+      // Draw back view with similar effects
+      backMuscleGridPositions.forEach((muscle, positions) {
+        for (final position in positions) {
+          drawHexagon(
+            Offset(position.dx * size.width, position.dy * size.height),
+            muscle,
+          );
+        }
+      });
+    }
   }
 
   Path _createHexagonPath(Offset center, double radius) {
